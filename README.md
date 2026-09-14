@@ -79,6 +79,11 @@ features entirely. The supported list of configurations is:
 4. TLS support via `rustls`, using a statically-compiled set of CA certificates to bypass the
    operating system's default store (`default-features = false, features = ["rustls-webpki"]`)
 
+The rustls configurations use the application's installed `CryptoProvider`, if any,
+and otherwise use ring for this connector. Creating a connector does not install a
+process-wide provider or panic when another dependency also enables aws-lc-rs.
+Root certificates are loaded by hyper-rustls using the selected root feature.
+
 ## Credits
 
 Large part of the code comes from [reqwest][2].

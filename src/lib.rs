@@ -300,7 +300,17 @@ impl<C> ProxyConnector<C> {
     /// Create a new secured Proxies
     #[cfg(feature = "rustls-base")]
     pub fn new(connector: C) -> Result<Self, io::Error> {
-        let config = tokio_rustls::rustls::ClientConfig::builder();
+        use tokio_rustls::rustls::{crypto, ClientConfig};
+
+        // Cargo can unify ring and aws-lc-rs through unrelated clients. Avoid
+        // the implicit builder's panic and do not choose a process-wide default
+        // on behalf of the application.
+        let provider = crypto::CryptoProvider::get_default()
+            .cloned()
+            .unwrap_or_else(|| Arc::new(crypto::ring::default_provider()));
+        let config = ClientConfig::builder_with_provider(provider)
+            .with_safe_default_protocol_versions()
+            .map_err(io_err)?;
 
         #[cfg(feature = "rustls")]
         let config = config.with_native_roots()?;
@@ -563,4 +573,32 @@ fn proxy_dst(dst: &Uri, proxy: &Uri) -> io::Result<Uri> {
         )
         .build()
         .map_err(|err| io_err(format!("other error: {}", err)))
+}
+
+#[cfg(all(test, feature = "rustls-base"))]
+mod rustls_tests {
+    use super::ProxyConnector;
+    use std::sync::Arc;
+    use tokio_rustls::rustls::crypto::{ring, CryptoProvider};
+
+    #[test]
+    fn connector_keeps_provider_selection_local_and_respects_application_default() {
+        // Run this with tokio-rustls/aws_lc_rs as well as ring to reproduce
+        // feature unification in applications with multiple TLS clients.
+        assert!(CryptoProvider::get_default().is_none());
+        let connector = ProxyConnector::new(()).unwrap();
+        assert!(connector.tls.is_some());
+        assert!(CryptoProvider::get_default().is_none());
+
+        // A later application choice must still be possible and take priority.
+        let mut provider = ring::default_provider();
+        provider.cipher_suites.truncate(1);
+        provider.install_default().unwrap();
+        let application_provider = CryptoProvider::get_default().unwrap();
+        let connector = ProxyConnector::new(()).unwrap();
+        assert!(Arc::ptr_eq(
+            connector.tls.as_ref().unwrap().config().crypto_provider(),
+            application_provider,
+        ));
+    }
 }

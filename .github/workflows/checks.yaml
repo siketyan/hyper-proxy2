@@ -17,14 +17,22 @@ jobs:
           - native-tls
           - rustls-native-roots
           - rustls-webpki-roots
+          - rustls-native-roots-mixed-providers
+          - rustls-webpki-roots-mixed-providers
           - openssl
         include:
           - tls: no-tls
-            features: native-tls
+            features: ''
+          - tls: native-tls
+            features: tls
           - tls: rustls-native-roots
             features: rustls
           - tls: rustls-webpki-roots
             features: rustls-webpki
+          - tls: rustls-native-roots-mixed-providers
+            features: rustls,tokio-rustls/aws_lc_rs
+          - tls: rustls-webpki-roots-mixed-providers
+            features: rustls-webpki,tokio-rustls/aws_lc_rs
           - tls: openssl
             features: openssl-tls
     steps:

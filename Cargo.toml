@@ -27,12 +27,10 @@ tokio-native-tls = { version = "0.3.1", optional = true }
 native-tls = { version = "0.2.11", optional = true }
 openssl = { version = "0.10.62", optional = true }
 tokio-openssl = { version = "0.6.4", optional = true }
-tokio-rustls = { version = "0.26.0", optional = true }
-hyper-rustls = { version = "0.27.0", optional = true }
-
-webpki = { version = "0.22", optional = true }
-rustls-native-certs = { version = "0.7.0", optional = true }
-webpki-roots = { version = "1.0.3", optional = true }
+# Retain the ring provider used before the rustls 0.23 update. Explicit
+# features avoid adding a second provider through dependency defaults.
+tokio-rustls = { version = "0.26.0", default-features = false, features = ["ring", "tls12", "logging"], optional = true }
+hyper-rustls = { version = "0.27.0", default-features = false, features = ["http1", "ring", "tls12", "logging"], optional = true }
 headers = "0.4"
 
 [dev-dependencies]
@@ -47,7 +45,7 @@ openssl-tls = ["openssl", "tokio-openssl"]
 tls = ["tokio-native-tls", "hyper-tls", "native-tls"]
 # note that `rustls-base` is not a valid feature on its own - it will configure rustls without root
 # certificates!
-rustls-base = ["tokio-rustls", "hyper-rustls", "webpki"]
-rustls = ["rustls-base", "rustls-native-certs", "hyper-rustls/native-tokio"]
-rustls-webpki = ["rustls-base", "webpki-roots", "hyper-rustls/webpki-tokio"]
+rustls-base = ["tokio-rustls", "hyper-rustls"]
+rustls = ["rustls-base", "hyper-rustls/native-tokio"]
+rustls-webpki = ["rustls-base", "hyper-rustls/webpki-tokio"]
 default = ["tls"]
